@@ -5,7 +5,7 @@ const TURN_SPEED = 360; // Turn speed in degrees per second
 const SHIP_THRUST = 5;
 const SHIP_EXPLODE_DURATION = 0.3;
 const FRICTION_COEFFICIENT = 0.5;
-const NUMBER_ASTEROIDS = 10;
+const NUMBER_ASTEROIDS = 50;
 const ASTEROID_SIZE = 100;
 const ASTEROID_SPEED = 50;
 const ASTEROID_VERTICES = 10;
@@ -112,9 +112,6 @@ function keydown(event) {
 		case 39: // Rotate ship right using right arrow key
 			ship.rotation = -((TURN_SPEED / 180) * Math.PI) / FPS;
 			break;
-		case 40: // Decrease thrusters
-			//  CANNOT DECREASE FORWARD THRUSTERS
-			break;
 	}
 }
 
@@ -128,9 +125,6 @@ function keyup(event) {
 			break;
 		case 39: // Stop right rotation when key is lifted up
 			ship.rotation = 0;
-			break;
-		case 40: // Decrease thrusters
-			//  CANNOT DECREASE FORWARD THRUSTERS
 			break;
 	}
 }
@@ -197,6 +191,12 @@ function update() {
 			c.x += c.vx;
 			c.y += c.vy;
 			c.radius -= 0.02;
+
+			if (c.radius < 0) c.radius = 0;
+		}
+		ship.explodeTime--;
+		if (ship.explodeTime == 0) {
+			ship = new createShip();
 		}
 	}
 
