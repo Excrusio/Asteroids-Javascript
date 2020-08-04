@@ -192,11 +192,7 @@ function update() {
 			c.y += c.vy;
 			c.radius -= 0.02;
 
-			if (c.radius < 0) c.radius = 0;
-		}
-		ship.explodeTime--;
-		if (ship.explodeTime == 0) {
-			ship = new createShip();
+			if (c.radius < 0) circles[j] = new createCircle();
 		}
 	}
 
