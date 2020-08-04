@@ -9,11 +9,14 @@ const SHIP_EXPLODE_DURATION = 0.3; // Duration of ship explosion.
 const SHIP_INVINCIBILITY_DURATION = 2; // Duration of invincibility.
 const SHIP_BLINK_DURATION = 0.1; // Blinking duration during invincible.
 const FRICTION_COEFFICIENT = 0.5; // Coefficient of friction.
-const LASER_MAX = 10; // Maximum number of bullets
+
+// Laser constants
+const LASER_MAX = 10; // Maximum number of laser bullets.
 const LASER_SPEED = 500; // Speed of lasers in pixels per second.
+const LASER_DISTANCE = 0.6; // Max distance laser can travel as screen width fraction.
 
 // Asteroid constants
-const NUMBER_ASTEROIDS = 50; // Initial number of asteroids.
+const NUMBER_ASTEROIDS = 10; // Initial number of asteroids.
 const ASTEROID_SIZE = 100; // Size of the asteroids.
 const ASTEROID_SPEED = 50; // Initial speed of asteroids in pixels per second.
 const ASTEROID_VERTICES = 10; // Number of vertices of asteroid.
@@ -158,6 +161,21 @@ function shipExploded() {
 	ship.explodeTime = Math.ceil(SHIP_EXPLODE_DURATION * FPS);
 }
 
+function shootLaser() {
+	// Create the laser
+	if (ship.canShoot && ship.lasers.length < LASER_MAX) {
+		ship.lasers.push({
+			x: ship.x + (4 / 3) * ship.radius * Math.cos(ship.angle),
+			y: ship.y - (4 / 3) * ship.radius * Math.sin(ship.angle),
+			xVelocity: (LASER_SPEED * Math.cos(ship.angle)) / FPS,
+			yVelocity: -(LASER_SPEED * Math.sin(ship.angle)) / FPS,
+		});
+	}
+
+	// Prevent further shooting
+	ship.canShoot = false;
+}
+
 // --------------------------------------------------------------------------
 
 function update() {
@@ -229,6 +247,37 @@ function update() {
 
 			if (c.radius < 0) circles[j] = new createCircle();
 		}
+	}
+
+	// --------------------------------------------------------------------------
+
+	// Draw the lasers
+	for (let i = 0; i < ship.lasers.length; ++i) {
+		context.fillStyle = "salmon";
+		context.beginPath();
+		context.arc(ship.lasers[i].x, ship.lasers[i].y, SHIP_SIZE / 15, 0, Math.PI * 2, false);
+		context.fill();
+
+		// Wrap the lasers to the screen
+		// X Component
+		if (ship.lasers[i].x < 0) {
+			ship.lasers[i].x = canvas.width;
+		} else if (ship.lasers[i].x > canvas.width) {
+			ship.lasers[i].x = 0;
+		}
+
+		// Y Component
+		if (ship.lasers[i].y < 0) {
+			ship.lasers[i].y = canvas.height;
+		} else if (ship.y > canvas.height) {
+			ship.lasers[i].y = 0;
+		}
+	}
+
+	// Move the lasers
+	for (let i = 0; i < ship.lasers.length; ++i) {
+		ship.lasers[i].x += ship.lasers[i].xVelocity;
+		ship.lasers[i].y += ship.lasers[i].yVelocity;
 	}
 
 	// --------------------------------------------------------------------------
