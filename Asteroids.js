@@ -5,37 +5,61 @@ const TURN_SPEED = 360; // Turn speed in degrees per second
 const SHIP_THRUST = 5;
 const SHIP_EXPLODE_DURATION = 0.3;
 const FRICTION_COEFFICIENT = 0.5;
-const NUMBER_ASTEROIDS = 50;
+const NUMBER_ASTEROIDS = 10;
 const ASTEROID_SIZE = 100;
 const ASTEROID_SPEED = 50;
 const ASTEROID_VERTICES = 10;
 const ASTEROID_JAGGEDNESS = 0.3;
 const SHOW_CENTRE_DOT = false;
-const SHOW_BOUNDING = true; // Collision bounding
+const SHOW_BOUNDING = false; // Collision bounding
 
 let canvas = document.getElementById("gameCanvas");
 let context = canvas.getContext("2d");
-
-// Set up ship
-let ship = {
-	x: canvas.clientWidth / 2,
-	y: canvas.clientHeight / 2,
-	radius: SHIP_SIZE / 2,
-	angle: (90 / 180) * Math.PI,
-	rotation: 0,
-	thrusting: false,
-	thrust: {
-		x: 0,
-		y: 0,
-	},
-	explodeTime: 0,
-};
 
 function distanceBetweenPoints(x1, y1, x2, y2) {
 	return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
 }
 
 // --------------------------------------------------------------------------
+
+let circles = [];
+class createCircle {
+	constructor() {
+		this.x = canvas.width / 2;
+		this.y = canvas.height / 2;
+
+		this.radius = 2 + Math.random() * 3;
+		this.vx = -5 + Math.random() * 10;
+		this.vy = -5 + Math.random() * 10;
+	}
+}
+
+for (let i = 0; i < 30; i++) {
+	circles.push(new createCircle());
+}
+
+// --------------------------------------------------------------------------
+
+class createShip {
+	constructor() {
+		this.x = canvas.clientWidth / 2;
+		this.y = canvas.clientHeight / 2;
+		this.radius = SHIP_SIZE / 2;
+		this.angle = (90 / 180) * Math.PI;
+		this.rotation = 0;
+		this.thrusting = false;
+		this.thrust = {
+			x: 0,
+			y: 0,
+		};
+		this.explodeTime = 0;
+	}
+}
+// Create ship
+ship = new createShip();
+
+// --------------------------------------------------------------------------
+
 // Set up asteroids
 let asteroids = [];
 createAstroidBelt();
@@ -70,23 +94,9 @@ function newAsteroid(x, y) {
 	}
 	return asteroid;
 }
-// --------------------------------------------------------------------------
-let circles = [];
-class createCircle {
-	constructor() {
-		this.x = canvas.width / 2;
-		this.y = canvas.height / 2;
 
-		this.radius = 2 + Math.random() * 3;
-		this.vx = -5 + Math.random() * 10;
-		this.vy = -5 + Math.random() * 10;
-	}
-}
-
-for (let i = 0; i < 30; i++) {
-	circles.push(new createCircle());
-}
 // --------------------------------------------------------------------------
+
 // Setup event handlers
 document.addEventListener("keydown", keydown);
 document.addEventListener("keyup", keyup);
@@ -188,7 +198,6 @@ function update() {
 			c.y += c.vy;
 			c.radius -= 0.02;
 		}
-		ship.explodeTime = 0;
 	}
 
 	// --------------------------------------------------------------------------
@@ -201,37 +210,54 @@ function update() {
 	}
 	// --------------------------------------------------------------------------
 
-	// --------------------------------------------------------------------------
-	// Rotate ship
-	ship.angle += ship.rotation;
+	if (!exploding) {
+		// Check for asteroid collisions
+		for (let i = 0; i < asteroids.length; ++i) {
+			if (
+				distanceBetweenPoints(ship.x, ship.y, asteroids[i].x, asteroids[i].y) <
+				ship.radius + asteroids[i].radius
+			) {
+				shipExploded();
+			}
+		}
+		// --------------------------------------------------------------------------
+		// Rotate ship
+		ship.angle += ship.rotation;
 
-	// Thrusters
-	if (ship.thrusting) {
-		ship.thrust.x += (SHIP_THRUST * Math.cos(ship.angle)) / FPS;
-		ship.thrust.y -= (SHIP_THRUST * Math.sin(ship.angle)) / FPS;
+		// Thrusters
+		if (ship.thrusting) {
+			ship.thrust.x += (SHIP_THRUST * Math.cos(ship.angle)) / FPS;
+			ship.thrust.y -= (SHIP_THRUST * Math.sin(ship.angle)) / FPS;
+		} else {
+			ship.thrust.x -= (ship.thrust.x * FRICTION_COEFFICIENT) / FPS;
+			ship.thrust.y -= (ship.thrust.y * FRICTION_COEFFICIENT) / FPS;
+		}
+
+		// --------------------------------------------------------------------------
+		// Move the ship
+		ship.x += ship.thrust.x;
+		ship.y += ship.thrust.y;
+
+		// Wrap the ship to the screen
+		// X Component
+		if (ship.x < 0 - ship.radius) {
+			ship.x = canvas.width + ship.radius;
+		} else if (ship.x > canvas.width + ship.radius) {
+			ship.x = 0 - ship.radius;
+		}
+
+		// Y Component
+		if (ship.y < 0 - ship.radius) {
+			ship.y = canvas.height + ship.radius;
+		} else if (ship.y > canvas.height + ship.radius) {
+			ship.y = 0 - ship.radius;
+		}
 	} else {
-		ship.thrust.x -= (ship.thrust.x * FRICTION_COEFFICIENT) / FPS;
-		ship.thrust.y -= (ship.thrust.y * FRICTION_COEFFICIENT) / FPS;
-	}
+		ship.explodeTime--;
 
-	// --------------------------------------------------------------------------
-	// Move the ship
-	ship.x += ship.thrust.x;
-	ship.y += ship.thrust.y;
-
-	// Wrap the ship to the screen
-	// X Component
-	if (ship.x < 0 - ship.radius) {
-		ship.x = canvas.width + ship.radius;
-	} else if (ship.x > canvas.width + ship.radius) {
-		ship.x = 0 - ship.radius;
-	}
-
-	// Y Component
-	if (ship.y < 0 - ship.radius) {
-		ship.y = canvas.height + ship.radius;
-	} else if (ship.y > canvas.height + ship.radius) {
-		ship.y = 0 - ship.radius;
+		if (ship.explodeTime == 0) {
+			ship = new createShip();
+		}
 	}
 	// --------------------------------------------------------------------------
 
@@ -264,16 +290,6 @@ function update() {
 
 		context.closePath();
 		context.stroke();
-
-		// Check for asteroid collisions
-		for (let i = 0; i < asteroids.length; ++i) {
-			if (
-				distanceBetweenPoints(ship.x, ship.y, asteroids[i].x, asteroids[i].y) <
-				ship.radius + asteroids[i].radius
-			) {
-				shipExploded();
-			}
-		}
 
 		if (SHOW_BOUNDING) {
 			context.strokeStyle = "lime";
