@@ -1,17 +1,27 @@
 /** @type {HTMLCanvasElement} */
 const FPS = 120;
+
+// Ship constants
 const SHIP_SIZE = 30;
-const TURN_SPEED = 360; // Turn speed in degrees per second
-const SHIP_THRUST = 5;
-const SHIP_EXPLODE_DURATION = 0.3;
-const FRICTION_COEFFICIENT = 0.5;
-const NUMBER_ASTEROIDS = 50;
-const ASTEROID_SIZE = 100;
-const ASTEROID_SPEED = 50;
-const ASTEROID_VERTICES = 10;
-const ASTEROID_JAGGEDNESS = 0.3;
+const TURN_SPEED = 360; // Turn speed in degrees per second.
+const SHIP_THRUST = 5; // Thruster speed of the ship.
+const SHIP_EXPLODE_DURATION = 0.3; // Duration of ship explosion.
+const SHIP_INVINCIBILITY_DURATION = 2; // Duration of invincibility.
+const SHIP_BLINK_DURATION = 0.1; // Blinking duration during invincible.
+const FRICTION_COEFFICIENT = 0.5; // Coefficient of friction.
+const LASER_MAX = 10; // Maximum number of bullets
+const LASER_SPEED = 500; // Speed of lasers in pixels per second.
+
+// Asteroid constants
+const NUMBER_ASTEROIDS = 50; // Initial number of asteroids.
+const ASTEROID_SIZE = 100; // Size of the asteroids.
+const ASTEROID_SPEED = 50; // Initial speed of asteroids in pixels per second.
+const ASTEROID_VERTICES = 10; // Number of vertices of asteroid.
+const ASTEROID_JAGGEDNESS = 0.3; // Distortions of an asteroid.
+
+// Debugging constants
 const SHOW_CENTRE_DOT = false;
-const SHOW_BOUNDING = false; // Collision bounding
+const SHOW_BOUNDING = false; // Collision bounding.
 
 let canvas = document.getElementById("gameCanvas");
 let context = canvas.getContext("2d");
@@ -46,12 +56,16 @@ class createShip {
 		this.y = canvas.clientHeight / 2;
 		this.radius = SHIP_SIZE / 2;
 		this.angle = (90 / 180) * Math.PI;
+		this.blinkTime = Math.ceil((SHIP_BLINK_DURATION * FPS) / 3);
+		this.blinkNumber = Math.ceil(SHIP_INVINCIBILITY_DURATION / SHIP_BLINK_DURATION);
 		this.rotation = 0;
 		this.thrusting = false;
 		this.thrust = {
 			x: 0,
 			y: 0,
 		};
+		this.canShoot = true;
+		this.lasers = [];
 		this.explodeTime = 0;
 	}
 }
@@ -103,6 +117,9 @@ document.addEventListener("keyup", keyup);
 
 function keydown(event) {
 	switch (event.keyCode) {
+		case 32: // Shoot lasers by space bar.
+			shootLaser();
+			break;
 		case 37: //  Rotate ship left using left arrow key
 			ship.rotation = ((TURN_SPEED / 180) * Math.PI) / FPS;
 			break;
@@ -117,6 +134,9 @@ function keydown(event) {
 
 function keyup(event) {
 	switch (event.keyCode) {
+		case 32: // Shoot lasers again.
+			ship.canShoot = true;
+			break;
 		case 37: //  Stop left rotation when key is lifted up
 			ship.rotation = 0;
 			break;
@@ -128,6 +148,7 @@ function keyup(event) {
 			break;
 	}
 }
+
 // --------------------------------------------------------------------------
 
 // Sets the game loop
@@ -138,7 +159,9 @@ function shipExploded() {
 }
 
 // --------------------------------------------------------------------------
+
 function update() {
+	let blinkOn = ship.blinkNumber % 2 == 0;
 	let exploding = ship.explodeTime > 0;
 
 	// Draws the space
@@ -148,36 +171,48 @@ function update() {
 	// --------------------------------------------------------------------------
 
 	if (!exploding) {
-		// Draws the ship
-		context.strokeStyle = "white";
-		context.lineWidth = SHIP_SIZE / 20;
-		context.beginPath();
-		context.moveTo(
-			// Nose of the ship
-			ship.x + (4 / 3) * ship.radius * Math.cos(ship.angle),
-			ship.y - (4 / 3) * ship.radius * Math.sin(ship.angle)
-		);
+		if (blinkOn) {
+			// Draws the ship
+			context.strokeStyle = "white";
+			context.lineWidth = SHIP_SIZE / 20;
+			context.beginPath();
+			context.moveTo(
+				// Nose of the ship
+				ship.x + (4 / 3) * ship.radius * Math.cos(ship.angle),
+				ship.y - (4 / 3) * ship.radius * Math.sin(ship.angle)
+			);
 
-		context.lineTo(
-			// Rear left
-			ship.x - ship.radius * ((2 / 3) * Math.cos(ship.angle) + Math.sin(ship.angle)),
-			ship.y + ship.radius * ((2 / 3) * Math.sin(ship.angle) - Math.cos(ship.angle))
-		);
+			context.lineTo(
+				// Rear left
+				ship.x - ship.radius * ((2 / 3) * Math.cos(ship.angle) + Math.sin(ship.angle)),
+				ship.y + ship.radius * ((2 / 3) * Math.sin(ship.angle) - Math.cos(ship.angle))
+			);
 
-		context.lineTo(
-			// Rear right
-			ship.x - ship.radius * ((2 / 3) * Math.cos(ship.angle) - Math.sin(ship.angle)),
-			ship.y + ship.radius * ((2 / 3) * Math.sin(ship.angle) + Math.cos(ship.angle))
-		);
+			context.lineTo(
+				// Rear right
+				ship.x - ship.radius * ((2 / 3) * Math.cos(ship.angle) - Math.sin(ship.angle)),
+				ship.y + ship.radius * ((2 / 3) * Math.sin(ship.angle) + Math.cos(ship.angle))
+			);
 
-		// Rather than lineTo, use closePath;
-		// context.lineTo(
-		// 	// Reconnect the top
-		// 	ship.x - ship.radius * Math.cos(ship.angle),
-		// 	ship.y - ship.radius * Math.sin(ship.angle)
-		// );
-		context.closePath();
-		context.stroke();
+			// Rather than lineTo, use closePath;
+			// context.lineTo(
+			// 	// Reconnect the top
+			// 	ship.x - ship.radius * Math.cos(ship.angle),
+			// 	ship.y - ship.radius * Math.sin(ship.angle)
+			// );
+			context.closePath();
+			context.stroke();
+		}
+
+		// Handle blinking
+		if (ship.blinkNumber > 0) {
+			ship.blinkTime--;
+
+			if (ship.blinkTime == 0) {
+				ship.blinkTime = Math.ceil(SHIP_BLINK_DURATION * FPS);
+				ship.blinkNumber--;
+			}
+		}
 	} else {
 		for (let j = 0; j < circles.length; j++) {
 			let c = circles[j];
@@ -204,19 +239,23 @@ function update() {
 		context.arc(ship.x, ship.y, ship.radius, 0, Math.PI * 2, false);
 		context.stroke();
 	}
+
 	// --------------------------------------------------------------------------
 
 	if (!exploding) {
 		// Check for asteroid collisions
-		for (let i = 0; i < asteroids.length; ++i) {
-			if (
-				distanceBetweenPoints(ship.x, ship.y, asteroids[i].x, asteroids[i].y) <
-				ship.radius + asteroids[i].radius
-			) {
-				shipExploded();
+		if (ship.blinkNumber == 0) {
+			for (let i = 0; i < asteroids.length; ++i) {
+				if (
+					distanceBetweenPoints(ship.x, ship.y, asteroids[i].x, asteroids[i].y) <
+					ship.radius + asteroids[i].radius
+				) {
+					shipExploded();
+				}
 			}
 		}
 		// --------------------------------------------------------------------------
+
 		// Rotate ship
 		ship.angle += ship.rotation;
 
@@ -230,6 +269,7 @@ function update() {
 		}
 
 		// --------------------------------------------------------------------------
+
 		// Move the ship
 		ship.x += ship.thrust.x;
 		ship.y += ship.thrust.y;
@@ -296,6 +336,7 @@ function update() {
 	}
 
 	// --------------------------------------------------------------------------
+
 	// Move the asteroids
 	for (let i = 0; i < asteroids.length; ++i) {
 		asteroids[i].x += asteroids[i].xVelocity;
