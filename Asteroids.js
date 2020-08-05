@@ -36,6 +36,8 @@ const HIGH_SCORE_KEY = "highestScore";
 
 let canvas = document.getElementById("gameCanvas");
 let context = canvas.getContext("2d");
+context.canvas.width = window.innerWidth - 30;
+context.canvas.height = window.innerHeight - 30;
 
 function distanceBetweenPoints(x1, y1, x2, y2) {
 	return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
