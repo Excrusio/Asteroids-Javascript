@@ -2,6 +2,8 @@
 const FPS = 120;
 const GAME_LIVES = 3; // Starting number of lives.
 
+// TODO: ADD SOUND EFFECTS IF DESIRED
+
 // Ship constants
 const SHIP_SIZE = 30;
 const TURN_SPEED = 360; // Turn speed in degrees per second.
