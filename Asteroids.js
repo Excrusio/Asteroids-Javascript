@@ -1,5 +1,6 @@
 /** @type {HTMLCanvasElement} */
 const FPS = 120;
+const GAME_LIVES = 3; // Starting number of lives.
 
 // Ship constants
 const SHIP_SIZE = 30;
@@ -17,15 +18,17 @@ const LASER_DISTANCE = 0.5; // Max distance laser can travel as screen width fra
 const LASER_EXPLODE_DURATION = 0.1; // Duration of laser explosion in seconds.
 
 // Asteroid constants
-const NUMBER_ASTEROIDS = 50; // Initial number of asteroids.
+const NUMBER_ASTEROIDS = 1; // Initial number of asteroids.
 const ASTEROID_SIZE = 100; // Size of the asteroids.
 const ASTEROID_SPEED = 50; // Initial speed of asteroids in pixels per second.
 const ASTEROID_VERTICES = 10; // Number of vertices of asteroid.
 const ASTEROID_JAGGEDNESS = 0.3; // Distortions of an asteroid.
 
-// Debugging constants
+// Development constants
 const SHOW_CENTRE_DOT = false;
 const SHOW_BOUNDING = false; // Collision bounding.
+const TEXT_FADE_TIME = 2.5;
+const TEXT_SIZE = 40;
 
 let canvas = document.getElementById("gameCanvas");
 let context = canvas.getContext("2d");
@@ -36,7 +39,6 @@ function distanceBetweenPoints(x1, y1, x2, y2) {
 
 // --------------------------------------------------------------------------
 
-let circles = [];
 class createCircle {
 	constructor() {
 		this.x = canvas.width / 2;
@@ -46,10 +48,6 @@ class createCircle {
 		this.vx = -5 + Math.random() * 10;
 		this.vy = -5 + Math.random() * 10;
 	}
-}
-
-for (let i = 0; i < 30; i++) {
-	circles.push(new createCircle());
 }
 
 // --------------------------------------------------------------------------
@@ -73,19 +71,13 @@ class createShip {
 		this.explodeTime = 0;
 	}
 }
-// Create ship
-ship = new createShip();
 
 // --------------------------------------------------------------------------
-
-// Set up asteroids
-let asteroids = [];
-createAstroidBelt();
 
 function createAstroidBelt() {
 	asteroids = [];
 	var x, y;
-	for (let i = 0; i < NUMBER_ASTEROIDS; ++i) {
+	for (let i = 0; i < NUMBER_ASTEROIDS + level * 2; ++i) {
 		do {
 			x = Math.floor(Math.random() * canvas.width);
 			y = Math.floor(Math.random() * canvas.height);
@@ -95,11 +87,16 @@ function createAstroidBelt() {
 }
 
 function newAsteroid(x, y, radius) {
+	let levelMultiplier = 1 + 0.1 * level;
 	let asteroid = {
 		x: x,
 		y: y,
-		xVelocity: ((Math.random() * ASTEROID_SPEED) / FPS) * (Math.random() < 0.5 ? 1 : -1),
-		yVelocity: ((Math.random() * ASTEROID_SPEED) / FPS) * (Math.random() < 0.5 ? 1 : -1),
+		xVelocity:
+			((Math.random() * levelMultiplier * ASTEROID_SPEED) / FPS) *
+			(Math.random() < 0.5 ? 1 : -1),
+		yVelocity:
+			((Math.random() * levelMultiplier * ASTEROID_SPEED) / FPS) *
+			(Math.random() < 0.5 ? 1 : -1),
 		radius: radius,
 		angle: Math.random() * Math.PI * 2,
 		vertices: Math.floor(Math.random() * (ASTEROID_VERTICES + 1) + ASTEROID_VERTICES / 2),
@@ -113,22 +110,40 @@ function newAsteroid(x, y, radius) {
 	return asteroid;
 }
 
-function destroyAsteroid(index) {
-	let x = asteroids[index].x;
-	let y = asteroids[index].y;
-	let radius = asteroids[index].radius;
+// --------------------------------------------------------------------------
+// INITIALIZE THE GAME VARIABLES ~~
+let circles = [],
+	asteroids,
+	ship,
+	level,
+	text,
+    textAlpha,
+    lives;
+createGame();
 
-	// Split the asteroid into smaller parts
-	if (radius === Math.ceil(ASTEROID_SIZE / 2)) {
-		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
-		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
-	} else if (radius === Math.ceil(ASTEROID_SIZE / 4)) {
-		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
-		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
+// --------------------------------------------------------------------------
+
+function createGame() {
+	// Create ship
+	ship = new createShip();
+
+	// Push new explosive circles
+	for (let i = 0; i < 30; i++) {
+		circles.push(new createCircle());
 	}
 
-	// Destroy the initial asteroids
-	asteroids.splice(index, 1);
+	// Level number
+    level = 0;
+    lives = GAME_LIVES;
+	newLevel();
+}
+
+function newLevel() {
+	// Set up asteroids
+	asteroids = [];
+	text = `Level ${level + 1}`;
+	textAlpha = 1.0;
+	createAstroidBelt();
 }
 
 // --------------------------------------------------------------------------
@@ -197,6 +212,30 @@ function shootLaser() {
 	ship.canShoot = false;
 }
 
+function destroyAsteroid(index) {
+	let x = asteroids[index].x;
+	let y = asteroids[index].y;
+	let radius = asteroids[index].radius;
+
+	// Split the asteroid into smaller parts
+	if (radius === Math.ceil(ASTEROID_SIZE / 2)) {
+		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
+		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
+	} else if (radius === Math.ceil(ASTEROID_SIZE / 4)) {
+		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
+		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
+	}
+
+	// Destroy the initial asteroids
+	asteroids.splice(index, 1);
+
+	// Increment level if none left
+	if (asteroids.length === 0) {
+		++level;
+		newLevel();
+	}
+}
+
 // --------------------------------------------------------------------------
 
 function update() {
@@ -207,8 +246,22 @@ function update() {
 	context.fillStyle = "black";
 	context.fillRect(0, 0, canvas.clientWidth, canvas.clientHeight);
 
-	// --------------------------------------------------------------------------
+	// Draw the game text
+	if (textAlpha >= 0) {
+		context.fillStyle = `rgba(255,255,255,${textAlpha})`;
+		context.textAlign = "center";
+		context.textBaseLine = "middle";
+		context.font = `40px bahnschrift`;
+		context.fillText(text, canvas.width / 2, (canvas.height / 4) * 3);
+		textAlpha -= 1.0 / TEXT_FADE_TIME / FPS;
+    }
+    
+    // Draw the lives
+    for(let )
 
+
+	// --------------------------------------------------------------------------
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SHIP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	if (!exploding) {
 		if (blinkOn) {
 			// Draws the ship
@@ -271,7 +324,7 @@ function update() {
 	}
 
 	// --------------------------------------------------------------------------
-
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ LASERS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// Draw the lasers
 	for (let i = 0; i < ship.lasers.length; ++i) {
 		if (ship.lasers[i].explodeTime == 0) {
@@ -453,7 +506,7 @@ function update() {
 		}
 	}
 	// --------------------------------------------------------------------------
-
+	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ ASTEROIDS ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// Draw the asteroids
 	context.lineWidth = SHIP_SIZE / 20;
 	let x, y, radius, vertices, angle, offset;
