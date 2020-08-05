@@ -14,6 +14,7 @@ const FRICTION_COEFFICIENT = 0.5; // Coefficient of friction.
 const LASER_MAX = 10; // Maximum number of laser bullets.
 const LASER_SPEED = 500; // Speed of lasers in pixels per second.
 const LASER_DISTANCE = 0.5; // Max distance laser can travel as screen width fraction.
+const LASER_EXPLODE_DURATION = 0.1; // Duration of laser explosion in seconds.
 
 // Asteroid constants
 const NUMBER_ASTEROIDS = 50; // Initial number of asteroids.
@@ -118,12 +119,12 @@ function destroyAsteroid(index) {
 	let radius = asteroids[index].radius;
 
 	// Split the asteroid into smaller parts
-	if (radius == Math.ceil(ASTEROID_SIZE / 2)) {
+	if (radius === Math.ceil(ASTEROID_SIZE / 2)) {
 		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
 		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
-	} else if (radius == Math.ceil(ASTEROID_SIZE / 4)) {
-		asteroids.push(newAsteroid((x, y, Math.ceil(ASTEROID_SIZE / 8))));
-		asteroids.push(newAsteroid((x, y, Math.ceil(ASTEROID_SIZE / 8))));
+	} else if (radius === Math.ceil(ASTEROID_SIZE / 4)) {
+		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
+		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
 	}
 
 	// Destroy the initial asteroids
@@ -188,6 +189,7 @@ function shootLaser() {
 			xVelocity: (LASER_SPEED * Math.cos(ship.angle)) / FPS,
 			yVelocity: -(LASER_SPEED * Math.sin(ship.angle)) / FPS,
 			distanceTravelled: 0,
+			explodeTime: 0,
 		});
 	}
 
@@ -272,10 +274,46 @@ function update() {
 
 	// Draw the lasers
 	for (let i = 0; i < ship.lasers.length; ++i) {
-		context.fillStyle = "salmon";
-		context.beginPath();
-		context.arc(ship.lasers[i].x, ship.lasers[i].y, SHIP_SIZE / 15, 0, Math.PI * 2, false);
-		context.fill();
+		if (ship.lasers[i].explodeTime == 0) {
+			context.fillStyle = "salmon";
+			context.beginPath();
+			context.arc(ship.lasers[i].x, ship.lasers[i].y, SHIP_SIZE / 15, 0, Math.PI * 2, false);
+			context.fill();
+		} else {
+			context.fillStyle = "orangered";
+			context.beginPath();
+			context.arc(
+				ship.lasers[i].x,
+				ship.lasers[i].y,
+				ship.radius * 0.75,
+				0,
+				Math.PI * 2,
+				false
+			);
+			context.fill();
+			context.fillStyle = "salmon";
+			context.beginPath();
+			context.arc(
+				ship.lasers[i].x,
+				ship.lasers[i].y,
+				ship.radius * 0.5,
+				0,
+				Math.PI * 2,
+				false
+			);
+			context.fill();
+			context.fillStyle = "pink";
+			context.beginPath();
+			context.arc(
+				ship.lasers[i].x,
+				ship.lasers[i].y,
+				ship.radius * 0.25,
+				0,
+				Math.PI * 2,
+				false
+			);
+			context.fill();
+		}
 	}
 
 	for (let i = ship.lasers.length - 1; i >= 0; --i) {
@@ -285,32 +323,42 @@ function update() {
 			continue;
 		}
 
-		// Move the lasers
-		ship.lasers[i].x += ship.lasers[i].xVelocity;
-		ship.lasers[i].y += ship.lasers[i].yVelocity;
+		// Handle the  explosions
+		if (ship.lasers[i].explodeTime > 0) {
+			ship.lasers[i].explodeTime--;
 
-		// Calculate the distance travelled by the laser.
-		ship.lasers[i].distanceTravelled += Math.sqrt(
-			Math.pow(ship.lasers[i].xVelocity, 2) + Math.pow(ship.lasers[i].yVelocity, 2)
-		);
+			if (ship.lasers[i].explodeTime == 0) {
+				ship.lasers.splice(i, 1);
+				continue;
+			}
+		} else {
+			// Move the lasers
+			ship.lasers[i].x += ship.lasers[i].xVelocity;
+			ship.lasers[i].y += ship.lasers[i].yVelocity;
 
-		// Wrap the lasers to the screen
-		// X Component
-		if (ship.lasers[i].x < 0) {
-			ship.lasers[i].x = canvas.width;
-		} else if (ship.lasers[i].x > canvas.width) {
-			ship.lasers[i].x = 0;
-		}
+			// Calculate the distance travelled by the laser.
+			ship.lasers[i].distanceTravelled += Math.sqrt(
+				Math.pow(ship.lasers[i].xVelocity, 2) + Math.pow(ship.lasers[i].yVelocity, 2)
+			);
 
-		// Y Component
-		if (ship.lasers[i].y < 0) {
-			ship.lasers[i].y = canvas.height;
-		} else if (ship.y > canvas.height) {
-			ship.lasers[i].y = 0;
+			// Wrap the lasers to the screen
+			// X Component
+			if (ship.lasers[i].x < 0) {
+				ship.lasers[i].x = canvas.width;
+			} else if (ship.lasers[i].x > canvas.width) {
+				ship.lasers[i].x = 0;
+			}
+
+			// Y Component
+			if (ship.lasers[i].y < 0) {
+				ship.lasers[i].y = canvas.height;
+			} else if (ship.y > canvas.height) {
+				ship.lasers[i].y = 0;
+			}
 		}
 	}
 
-	// Check collision with asteroids
+	// Check for asteroid collision with laser.
 	var asteroidX, asteroidY, asteroidRadius, laserX, laserY;
 	for (let i = asteroids.length - 1; i >= 0; --i) {
 		// Get them properties
@@ -324,12 +372,14 @@ function update() {
 			laserY = ship.lasers[j].y;
 
 			// Detect hits
-			if (distanceBetweenPoints(asteroidX, asteroidY, laserX, laserY) < asteroidRadius) {
-				// Remove the laser
-				ship.lasers.splice(j, 1);
-
-				// Remove the asteroid
+			if (
+				ship.lasers[j].explodeTime == 0 &&
+				distanceBetweenPoints(asteroidX, asteroidY, laserX, laserY) < asteroidRadius
+			) {
+				// Remove the asteroid and initiate laser explosion
 				destroyAsteroid(i);
+
+				ship.lasers[j].explodeTime = Math.ceil(LASER_EXPLODE_DURATION * FPS);
 
 				break;
 			}
@@ -348,7 +398,7 @@ function update() {
 	// --------------------------------------------------------------------------
 
 	if (!exploding) {
-		// Check for asteroid collisions
+		// Check for asteroid collision with ship
 		if (ship.blinkNumber == 0) {
 			for (let i = 0; i < asteroids.length; ++i) {
 				if (
@@ -357,6 +407,7 @@ function update() {
 				) {
 					destroyAsteroid(i);
 					shipExploded();
+					break;
 				}
 			}
 		}
