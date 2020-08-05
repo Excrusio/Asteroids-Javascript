@@ -23,12 +23,16 @@ const ASTEROID_SIZE = 100; // Size of the asteroids.
 const ASTEROID_SPEED = 50; // Initial speed of asteroids in pixels per second.
 const ASTEROID_VERTICES = 10; // Number of vertices of asteroid.
 const ASTEROID_JAGGEDNESS = 0.3; // Distortions of an asteroid.
+const LARGE_ASTEROID_POINTS = 20;
+const MEDIUM_ASTEROID_POINTS = 50;
+const SMALL_ASTEROID_POINTS = 80;
 
 // Development constants
 const SHOW_CENTRE_DOT = false;
 const SHOW_BOUNDING = false; // Collision bounding.
 const TEXT_FADE_TIME = 2.5;
 const TEXT_SIZE = 40;
+const HIGH_SCORE_KEY = "highestScore";
 
 let canvas = document.getElementById("gameCanvas");
 let context = canvas.getContext("2d");
@@ -71,6 +75,7 @@ class createShip {
 		this.explodeTime = 0;
 		this.dead = false;
 	}
+	score = 0;
 }
 
 // --------------------------------------------------------------------------
@@ -120,7 +125,9 @@ let circles = [],
 	text,
 	textAlpha,
 	lives,
-	lifeColour;
+	lifeColour,
+	score,
+	highestScore;
 createGame();
 
 // --------------------------------------------------------------------------
@@ -136,13 +143,24 @@ function createGame() {
 
 	// Level number
 	level = 0;
+	score = 0;
 	lives = GAME_LIVES;
+
+	// Get the highest score
+	let scoreString = localStorage.getItem(HIGH_SCORE_KEY);
+	if (scoreString === null) {
+		highestScore = 0;
+	} else {
+		highestScore = parseInt(scoreString);
+	}
+
 	newLevel();
 }
 
 function newLevel() {
 	// Set up asteroids
 	asteroids = [];
+	score = 0;
 	text = `Level ${level + 1}`;
 	textAlpha = 1.0;
 	createAstroidBelt();
@@ -264,10 +282,18 @@ function destroyAsteroid(index) {
 	if (radius === Math.ceil(ASTEROID_SIZE / 2)) {
 		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
 		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 4)));
+		score += LARGE_ASTEROID_POINTS;
 	} else if (radius === Math.ceil(ASTEROID_SIZE / 4)) {
 		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
 		asteroids.push(newAsteroid(x, y, Math.ceil(ASTEROID_SIZE / 8)));
+		score += MEDIUM_ASTEROID_POINTS;
+	} else {
+		score += SMALL_ASTEROID_POINTS;
 	}
+
+	// Check and store high score
+	highestScore = Math.max(highestScore, score);
+	localStorage.setItem(HIGH_SCORE_KEY, highestScore);
 
 	// Destroy the initial asteroids
 	asteroids.splice(index, 1);
@@ -312,6 +338,20 @@ function update() {
 		lifeColour = exploding && i === lives - 1 ? "red" : "green";
 		drawShip(SHIP_SIZE + i * SHIP_SIZE * 1.2, SHIP_SIZE, 0.5 * Math.PI, lifeColour);
 	}
+
+	// Draw the highest score
+	context.fillStyle = `rgba(255,255,255)`;
+	context.textAlign = "center";
+	context.textBaseLine = "middle";
+	context.font = `25px bahnschrift`;
+	context.fillText(`Highest Score: ${highestScore}`, canvas.width / 2, SHIP_SIZE);
+
+	// Draw the current score
+	context.fillStyle = `rgba(255,255,255)`;
+	context.textAlign = "center";
+	context.textBaseLine = "middle";
+	context.font = `25px bahnschrift`;
+	context.fillText(score, canvas.width - SHIP_SIZE / 2, SHIP_SIZE);
 
 	// --------------------------------------------------------------------------
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SHIP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
