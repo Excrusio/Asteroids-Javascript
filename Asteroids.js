@@ -20,7 +20,7 @@ const LASER_DISTANCE = 0.5; // Max distance laser can travel as screen width fra
 const LASER_EXPLODE_DURATION = 0.1; // Duration of laser explosion in seconds.
 
 // Asteroid constants
-const NUMBER_ASTEROIDS = 10; // Initial number of asteroids.
+const NUMBER_ASTEROIDS = 100; // Initial number of asteroids.
 const ASTEROID_SIZE = 100; // Size of the asteroids.
 const ASTEROID_SPEED = 50; // Initial speed of asteroids in pixels per second.
 const ASTEROID_VERTICES = 10; // Number of vertices of asteroid.
