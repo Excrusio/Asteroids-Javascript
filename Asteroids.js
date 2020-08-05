@@ -18,7 +18,7 @@ const LASER_DISTANCE = 0.5; // Max distance laser can travel as screen width fra
 const LASER_EXPLODE_DURATION = 0.1; // Duration of laser explosion in seconds.
 
 // Asteroid constants
-const NUMBER_ASTEROIDS = 1; // Initial number of asteroids.
+const NUMBER_ASTEROIDS = 10; // Initial number of asteroids.
 const ASTEROID_SIZE = 100; // Size of the asteroids.
 const ASTEROID_SPEED = 50; // Initial speed of asteroids in pixels per second.
 const ASTEROID_VERTICES = 10; // Number of vertices of asteroid.
@@ -36,8 +36,13 @@ const HIGH_SCORE_KEY = "highestScore";
 
 let canvas = document.getElementById("gameCanvas");
 let context = canvas.getContext("2d");
-context.canvas.width = window.innerWidth - 30;
-context.canvas.height = window.innerHeight - 30;
+canvasResize();
+window.addEventListener("resize", canvasResize, false);
+
+function canvasResize() {
+	context.canvas.width = window.innerWidth - 30;
+	context.canvas.height = window.innerHeight - 30;
+}
 
 function distanceBetweenPoints(x1, y1, x2, y2) {
 	return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
@@ -353,7 +358,7 @@ function update() {
 	context.textAlign = "center";
 	context.textBaseLine = "middle";
 	context.font = `25px bahnschrift`;
-	context.fillText(score, canvas.width - SHIP_SIZE / 2, SHIP_SIZE);
+	context.fillText(score, canvas.width - SHIP_SIZE, SHIP_SIZE);
 
 	// --------------------------------------------------------------------------
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ SHIP ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
