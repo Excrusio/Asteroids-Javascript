@@ -6,7 +6,7 @@ const GAME_LIVES = 3; // Starting number of lives.
 
 // Ship constants
 const SHIP_SIZE = 30;
-const TURN_SPEED = 360; // Turn speed in degrees per second.
+const TURN_SPEED = 240; // Turn speed in degrees per second.
 const SHIP_THRUST = 5; // Thruster speed of the ship.
 const SHIP_EXPLODE_DURATION = 0.3; // Duration of ship explosion.
 const SHIP_INVINCIBILITY_DURATION = 2; // Duration of invincibility.
